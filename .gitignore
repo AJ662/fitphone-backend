@@ -1,0 +1,15 @@
+.venv/
+.uv-cache/
+__pycache__/
+*.pyc
+.DS_Store
+data/raw/
+data/recbole/
+data/derived/
+saved/
+log/
+log_tensorboard/
+*.db
+.env
+.idea/
+.vscode/

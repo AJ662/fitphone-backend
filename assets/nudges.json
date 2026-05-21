@@ -1,0 +1,70 @@
+{
+  "default": "default",
+  "categories": {
+    "social": {
+      "apps": [
+        "Facebook", "Instagram", "Snapchat", "Twitter", "Reddit",
+        "Pinterest", "Quora", "Badoo", "Flipboard Briefing"
+      ],
+      "image": "assets/images/social.png",
+      "messages": [
+        "Pause for a sec — is this scroll serving you, or just filling time?",
+        "Your future self called. They'd rather you went for a walk.",
+        "The feed will still be there in an hour. Try a deep breath first."
+      ]
+    },
+    "video": {
+      "apps": [
+        "YouTube", "Netflix", "Hulu", "Movie Play Box", "EntertaiNow"
+      ],
+      "image": "assets/images/video.png",
+      "messages": [
+        "One video can turn into ten. Set a timer before you start.",
+        "Stretch first, watch second."
+      ]
+    },
+    "messaging": {
+      "apps": [
+        "WhatsApp Messenger", "Facebook Messenger", "Messenger Lite",
+        "Messages", "Messaging", "Verizon Messages", "Telegram",
+        "Telegram X", "Discord", "Hangouts", "Kik", "WeChat", "imo",
+        "Text One", "TextNow"
+      ],
+      "image": "assets/images/messaging.png",
+      "messages": [
+        "Not every message needs an instant reply.",
+        "Quick check-in: is this urgent, or just loud?"
+      ]
+    },
+    "shopping": {
+      "apps": [
+        "Amazon Shopping", "Walmart", "eBay", "OfferUp",
+        "PayPal Mobile Cash", "Ibotta", "Receipt Hog"
+      ],
+      "image": "assets/images/shopping.png",
+      "messages": [
+        "Add to cart, sleep on it, decide tomorrow.",
+        "Quick gut-check: needed, or just nice to have?"
+      ]
+    },
+    "games": {
+      "apps": [
+        "Army Men Strike", "Baseball Boy!",
+        "Minesweeper Classic (Mines)", "Words With Friends 2"
+      ],
+      "image": "assets/images/games.png",
+      "messages": [
+        "Five-minute rule: if you're still playing after five, take a break.",
+        "Your eyes will thank you for a 20-second look at something far away."
+      ]
+    },
+    "default": {
+      "apps": [],
+      "image": "assets/images/default.png",
+      "messages": [
+        "Notice the urge. You don't have to act on it.",
+        "Quick pause — what were you doing before you picked up your phone?"
+      ]
+    }
+  }
+}

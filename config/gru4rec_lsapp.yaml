@@ -1,0 +1,31 @@
+model: GRU4Rec
+dataset: lsapp
+data_path: ./data/recbole/
+
+USER_ID_FIELD: user_id
+ITEM_ID_FIELD: item_id
+TIME_FIELD: timestamp
+load_col:
+  inter: [user_id, item_id, timestamp]
+
+MAX_ITEM_LIST_LENGTH: 50
+train_neg_sample_args: ~
+
+epochs: 30
+train_batch_size: 1024
+eval_batch_size: 1024
+learning_rate: 0.001
+stopping_step: 5
+
+eval_args:
+  split: {LS: valid_and_test}
+  order: TO
+  group_by: user
+  mode: full
+
+metrics: [Recall, MRR, NDCG, Hit]
+topk: [5, 10]
+valid_metric: NDCG@10
+
+checkpoint_dir: ./saved
+show_progress: True

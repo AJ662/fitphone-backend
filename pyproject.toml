@@ -1,0 +1,29 @@
+[project]
+name = "fitphone-backend"
+version = "0.1.0"
+description = "Fontys Fitphone backend: next-app prediction + nudge API."
+requires-python = ">=3.10,<3.12"
+dependencies = [
+    "recbole==1.2.0",
+    "torch>=1.13,<2.3",
+    "ray[tune]>=2.0",
+    "kmeans-pytorch>=0.3",
+    "tensorboard>=2.10",
+    "thop>=0.1",
+    "pandas>=2.0",
+    "numpy>=1.24,<2.0",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "pydantic>=2.0",
+    "pyyaml>=6.0",
+    "jupyter>=1.0",
+    "matplotlib>=3.7",
+    "seaborn>=0.13",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
