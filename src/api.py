@@ -122,6 +122,55 @@ app = FastAPI(title="Fitphone Backend", lifespan=lifespan)
 app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
 
 
+_LOG_MAX_BODY = 2000  # truncate giant request bodies so logs stay readable
+
+
+@app.middleware("http")
+async def log_requests(request, call_next):
+    """Log every request/response — path, status, latency, and a snippet of
+    both bodies. Skipped for /assets to keep image fetches quiet."""
+    from fastapi.responses import Response
+
+    path = request.url.path
+    if path.startswith("/assets"):
+        return await call_next(request)
+
+    body_bytes = await request.body()
+
+    async def receive() -> dict:
+        return {"type": "http.request", "body": body_bytes, "more_body": False}
+    request._receive = receive  # type: ignore[attr-defined]
+
+    body_preview = body_bytes[:_LOG_MAX_BODY].decode("utf-8", errors="replace")
+    if len(body_bytes) > _LOG_MAX_BODY:
+        body_preview += f"... [+{len(body_bytes) - _LOG_MAX_BODY} bytes]"
+
+    started = time.perf_counter()
+    print(f"\n>>> {request.method} {path}")
+    if body_bytes:
+        print(f"    req: {body_preview}")
+
+    response = await call_next(request)
+
+    resp_bytes = b""
+    async for chunk in response.body_iterator:
+        resp_bytes += chunk
+    elapsed_ms = (time.perf_counter() - started) * 1000
+    resp_preview = resp_bytes[:_LOG_MAX_BODY].decode("utf-8", errors="replace")
+    if len(resp_bytes) > _LOG_MAX_BODY:
+        resp_preview += f"... [+{len(resp_bytes) - _LOG_MAX_BODY} bytes]"
+    print(f"<<< {response.status_code} {path} ({elapsed_ms:.0f}ms)")
+    if resp_bytes:
+        print(f"    res: {resp_preview}")
+
+    return Response(
+        content=resp_bytes,
+        status_code=response.status_code,
+        headers=dict(response.headers),
+        media_type=response.media_type,
+    )
+
+
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok", "model_loaded": state.get("recommender") is not None}
@@ -135,6 +184,23 @@ def apps() -> dict:
     field = rec.config["ITEM_ID_FIELD"]
     names = [t for t in rec.dataset.field2token_id[field] if t != "[PAD]"]
     return {"apps": sorted(names)}
+
+
+@app.get("/nudge_for/{pkg}")
+def nudge_for(pkg: str) -> dict:
+    """Return the nudge content for a given Android package (or app name).
+    Lets the client trigger a nudge for whatever app is currently in front,
+    without going through the ML predict roundtrip."""
+    name = normalize_app(pkg)
+    n = state["nudges"].nudge_for(name)
+    return {
+        "app": name,
+        "nudge": {
+            "message": n.message,
+            "image_path": n.image_path,
+            "category": n.category,
+        },
+    }
 
 
 @app.post("/predict", response_model=PredictResponse)
