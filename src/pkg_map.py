@@ -1,6 +1,7 @@
-"""Maps Android package names to the human-readable app names the model was
-trained on. Used by /predict so phone-side history (which only knows package
-names) can be matched against the model's vocabulary."""
+"""Maps Android package names to the human-readable app names the LSApp
+model was trained on (87-item Android vocabulary: 'Instagram', 'Reddit',
+'Settings', etc.). The /predict endpoint normalizes incoming history
+through this so the phone can send raw package names."""
 
 PKG_TO_NAME: dict[str, str] = {
     # social
@@ -35,7 +36,7 @@ PKG_TO_NAME: dict[str, str] = {
     "com.ibotta.android": "Ibotta",
     # games (samples only)
     "com.zynga.wwf2.free": "Words With Friends 2",
-    # browsers / utilities (in LiveLab vocab)
+    # browsers / utilities (in LSApp vocab)
     "com.android.chrome": "Google Chrome",
     "com.brave.browser": "Brave Browser",
     "com.sec.android.app.sbrowser": "Samsung Internet Browser",
@@ -58,15 +59,18 @@ PKG_TO_NAME: dict[str, str] = {
     "com.android.vending": "Google Play Store",
     "com.spotify.music": "Spotify Music",
     "com.android.settings": "Settings",
-    # samsung
     "com.samsung.android.email.provider": "Samsung Email",
     "com.sec.android.gallery3d": "Samsung Gallery",
     "com.samsung.android.app.notes": "Samsung Notes",
     "com.samsung.android.spay": "Samsung Pay",
 }
 
-# Packages to drop entirely from history — they aren't useful predictors
-# (launcher/system UI) or represent the FitPhone app itself.
+
+def normalize(name: str) -> str:
+    """Return the LSApp app name for a package, or the input unchanged."""
+    return PKG_TO_NAME.get(name, name)
+
+
 NOISE_PACKAGES: set[str] = {
     "com.google.android.apps.nexuslauncher",
     "com.sec.android.app.launcher",
@@ -76,8 +80,3 @@ NOISE_PACKAGES: set[str] = {
     "com.example.fitphone2",
     "com.tailscale.ipn",
 }
-
-
-def normalize(name: str) -> str:
-    """Return the model-known app name for a package, or the input unchanged."""
-    return PKG_TO_NAME.get(name, name)

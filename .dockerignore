@@ -1,0 +1,10 @@
+data/raw
+data/derived
+notebooks
+postman
+log
+log_tensorboard
+*.log
+.venv
+__pycache__
+.git

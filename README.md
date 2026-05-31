@@ -1,3 +1,13 @@
+---
+title: Fitphone Backend
+emoji: 📱
+colorFrom: indigo
+colorTo: purple
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Fitphone Backend
 
 Backend for the Fontys Fitphone Streamlit app. Predicts the user's next likely app

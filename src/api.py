@@ -17,6 +17,7 @@ from pydantic import BaseModel
 
 from .habits import get_habits, init_habits_db, log_habit
 from .nudges import NudgeBook
+from .persistence import EventSnapshotter
 from .pkg_map import NOISE_PACKAGES, normalize as normalize_app
 from .predict import Recommender
 from .rules import compute_next_action, get_rules, init_rules_db, update_rule
@@ -24,7 +25,8 @@ from .stats import compute_stats
 
 
 ROOT = Path(__file__).resolve().parent.parent
-DB_PATH = ROOT / "events.db"
+# DB_PATH env var lets the container point at /tmp (HF Spaces' writable area).
+DB_PATH = Path(os.environ.get("DB_PATH", ROOT / "events.db"))
 NUDGES_PATH = ROOT / "assets" / "nudges.json"
 SAVED_DIR = ROOT / "saved"
 ASSETS_DIR = ROOT / "assets"
@@ -110,6 +112,7 @@ state: dict = {}
 async def lifespan(app: FastAPI):
     init_db()
     state["nudges"] = NudgeBook(NUDGES_PATH)
+    state["snapshotter"] = EventSnapshotter(DB_PATH)
     model_name = os.environ.get("FITPHONE_MODEL")  # optional: "SASRec" or "GRU4Rec"
     try:
         state["recommender"] = Recommender.from_latest(str(SAVED_DIR), model_name)
@@ -186,6 +189,44 @@ def apps() -> dict:
     return {"apps": sorted(names)}
 
 
+_retrain_state: dict = {"running": False, "last_result": None, "started_at": None}
+
+
+@app.post("/retrain")
+def trigger_retrain() -> dict:
+    """Kick off a retraining run in a background thread. Returns immediately
+    with the current status — actual training takes minutes."""
+    import threading
+
+    from .retrain import retrain as _do_retrain
+
+    if _retrain_state["running"]:
+        return {"ok": False, "status": "already_running", "started_at": _retrain_state["started_at"]}
+
+    def _run():
+        _retrain_state["running"] = True
+        _retrain_state["started_at"] = time.time()
+        try:
+            result = _do_retrain()
+            _retrain_state["last_result"] = result
+        except Exception as e:
+            _retrain_state["last_result"] = {"ok": False, "error": str(e)}
+        finally:
+            _retrain_state["running"] = False
+
+    threading.Thread(target=_run, daemon=True).start()
+    return {"ok": True, "status": "started"}
+
+
+@app.get("/retrain/status")
+def retrain_status() -> dict:
+    return {
+        "running": _retrain_state["running"],
+        "started_at": _retrain_state["started_at"],
+        "last_result": _retrain_state["last_result"],
+    }
+
+
 @app.get("/nudge_for/{pkg}")
 def nudge_for(pkg: str) -> dict:
     """Return the nudge content for a given Android package (or app name).
@@ -247,6 +288,11 @@ def log_events(events: list[LogEvent]) -> dict:
             "VALUES (?, ?, ?, ?, ?)",
             rows,
         )
+    # Snapshot the DB to the dataset repo if enough time has passed — fire
+    # and forget on a background thread so the request returns quickly.
+    snap = state.get("snapshotter")
+    if snap is not None:
+        snap.maybe_snapshot()
     return {"ok": True, "inserted": len(rows)}
 
 
