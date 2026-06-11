@@ -39,12 +39,42 @@ def _dwells(rows: List[tuple]) -> List[tuple]:
     return out
 
 
-def compute_stats(conn: sqlite3.Connection, user_id: str, social_apps: set) -> dict:
+def _period_window(period: str, offset: int) -> tuple[datetime, datetime]:
+    """Return (start, end) for the given period and backwards offset (0 = current)."""
+    now = datetime.now()
+    today = now.date()
+    if period == "week":
+        week_monday = today - timedelta(days=today.weekday()) - timedelta(weeks=offset)
+        start = datetime.combine(week_monday, datetime.min.time())
+        end = start + timedelta(weeks=1)
+    elif period == "month":
+        month = now.month - offset
+        year = now.year + (month - 1) // 12
+        month = ((month - 1) % 12) + 1
+        start = datetime(year, month, 1)
+        end = datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)
+    else:  # day
+        target = today - timedelta(days=offset)
+        start = datetime.combine(target, datetime.min.time())
+        end = start + timedelta(days=1)
+    return start, end
+
+
+def compute_stats(
+    conn: sqlite3.Connection,
+    user_id: str,
+    social_apps: set,
+    period: str = "day",
+    offset: int = 0,
+) -> dict:
     rows = conn.execute(
         "SELECT session_id, app, timestamp FROM events "
         "WHERE user_id = ? AND event_type = 'Opened' ORDER BY timestamp",
         (user_id,),
     ).fetchall()
+
+    start, end = _period_window(period, offset)
+    bucket_count = {"day": 24, "week": 7}.get(period, 24)
 
     if not rows:
         return {
@@ -62,15 +92,37 @@ def compute_stats(conn: sqlite3.Connection, user_id: str, social_apps: set) -> d
     now = datetime.now()
     today = now.date()
 
-    today_rows = [(s, a, t) for (s, a, t) in rows if datetime.fromtimestamp(t).date() == today]
-    dwells = _dwells(today_rows)
+    # ── filter rows to the requested period window ────────────────────────────
+    start_ts = start.timestamp()
+    end_ts = end.timestamp()
+    period_rows = [(s, a, t) for s, a, t in rows if start_ts <= t < end_ts]
+
+    dwells = _dwells(period_rows)
 
     screen_time = sum(d for _, _, d in dwells)
     per_app: Dict[str, float] = defaultdict(float)
-    hourly = [0.0] * 24
-    for app, ts, dwell in dwells:
-        per_app[app] += dwell
-        hourly[datetime.fromtimestamp(ts).hour] += dwell
+
+    # ── build bucket list ─────────────────────────────────────────────────────
+    if period == "week":
+        buckets = [0.0] * 7
+        for app, ts, dwell in dwells:
+            idx = (datetime.fromtimestamp(ts).date() - start.date()).days
+            if 0 <= idx < 7:
+                buckets[idx] += dwell
+            per_app[app] += dwell
+    elif period == "month":
+        days_in_month = (end - timedelta(days=1)).day
+        buckets = [0.0] * days_in_month
+        for app, ts, dwell in dwells:
+            idx = datetime.fromtimestamp(ts).day - 1
+            if 0 <= idx < days_in_month:
+                buckets[idx] += dwell
+            per_app[app] += dwell
+    else:  # day — 24-hour buckets
+        buckets = [0.0] * 24
+        for app, ts, dwell in dwells:
+            buckets[datetime.fromtimestamp(ts).hour] += dwell
+            per_app[app] += dwell
 
     top_apps = sorted(
         ({"app": a, "seconds": int(s)} for a, s in per_app.items()),

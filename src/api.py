@@ -307,11 +307,11 @@ def recent(user_id: str, limit: int = 20) -> dict:
 
 
 @app.get("/stats/{user_id}")
-def stats(user_id: str) -> dict:
+def stats(user_id: str, period: str = "day", offset: int = 0) -> dict:
     nudges = state.get("nudges")
     social = set(nudges.categories.get("social", {}).get("apps", [])) if nudges else set()
     with sqlite3.connect(DB_PATH) as conn:
-        return compute_stats(conn, user_id, social)
+        return compute_stats(conn, user_id, social, period=period, offset=offset)
 
 
 @app.get("/habits/{user_id}")
